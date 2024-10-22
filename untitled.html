@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload and Watching Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        input, textarea {
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .video-upload, .watching-page, .admin-section {
+            margin-top: 20px;
+        }
+        .video-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .video-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        button.delete {
+            background-color: #dc3545;
+        }
+        .ratings {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- User Login Form -->
+        <div id="login-form">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <input type="text" id="loginUsername" placeholder="Username" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="button" onclick="login()">Login</button>
+            </form>
+            <p>Don't have an account? <a href="#" onclick="showRegister()">Sign Up</a></p>
+        </div>
+
+        <!-- User Registration Form -->
+        <div id="register-form" style="display:none;">
+            <h2>Register</h2>
+            <form id="registerForm">
+                <input type="text" id="registerUsername" placeholder="Username" required>
+                <input type="password" id="registerPassword" placeholder="Password" required>
+                <button type="button" onclick="register()">Sign Up</button>
+            </form>
+            <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+        </div>
+
+        <!-- Video Upload Section (Only shown to logged-in users) -->
+        <div id="video-upload" class="video-upload" style="display:none;">
+            <h2>Upload a Video</h2>
+            <input type="text" id="videoTitle" placeholder="Video Title" required>
+            <input type="file" id="videoFile" accept="video/*" required>
+            <button type="button" onclick="uploadVideo()">Upload Video</button>
+        </div>
+
+        <!-- Watching Page -->
+        <div id="watching-page" class="watching-page" style="display:none;">
+            <h2>Watching Page</h2>
+            <div id="new-releases" class="section">
+                <h3>New Releases</h3>
+                <div class="video-list" id="newReleaseList"></div>
+            </div>
+            <div id="most-popular" class="section">
+                <h3>Most Popular</h3>
+                <div class="video-list" id="mostPopularList"></div>
+            </div>
+            <div id="most-rated" class="section">
+                <h3>Most Rated</h3>
+                <div class="video-list" id="mostRatedList"></div>
+            </div>
+        </div>
+
+        <!-- Admin Section for Video Approval -->
+        <div id="admin-section" class="admin-section" style="display:none;">
+            <h2>Approve Uploaded Videos</h2>
+            <div id="video-list" class="video-list"></div>
+        </div>
+
+        <!-- Button to Watch Videos -->
+        <button id="watchingPageBtn" style="display:none;" onclick="showWatchingPage()">Go to Watching Page</button>
+
+    </div>
+
+    <script>
+        // Predefined admin account
+        const adminUsername = "admin";
+        const adminPassword = "admin123";
+        let loggedInUser = null; // Track the logged-in user
+
+        // Simulating a local storage database
+        if (!localStorage.getItem("users")) {
+            localStorage.setItem("users", JSON.stringify([])); // No users initially
+        }
+        if (!localStorage.getItem("videos")) {
+            localStorage.setItem("videos", JSON.stringify([])); // No videos initially
+        }
+
+        // Function to switch between login and registration forms
+        function showLogin() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+        }
+
+        function showRegister() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+        }
+
+        // Register a new user
+        function register() {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            let users = JSON.parse(localStorage.getItem("users"));
+
+            if (users.find(user => user.username === username)) {
+                alert("Username already exists!");
+                return;
+            }
+
+            users.push({ username, password });
+            localStorage.setItem("users", JSON.stringify(users));
+            alert("Registration successful! You can now log in.");
+            showLogin();
+        }
+
+        // Login user or admin
+        function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            // Admin login check
+            if (username === adminUsername && password === adminPassword) {
+                loggedInUser = adminUsername;
+                alert("Admin login successful!");
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('admin-section').style.display = 'block';
+                document.getElementById('watchingPageBtn').style.display = 'block'; // Show "Watching Page" button
+                loadVideosForApproval();
+                return;
+            }
+
+            // Regular user login check
+            const users = JSON.parse(localStorage.getItem("users"));
+            const user = users.find(user => user.username === username && user.password === password);
+
+            if (user) {
+                loggedInUser = username;
+                alert("Login successful!");
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('video-upload').style.display = 'block';
+                document.getElementById('watchingPageBtn').style.display = 'block'; // Show "Watching Page" button
+            } else {
+                alert("Invalid username or password.");
+            }
+        }
+
+        // Upload a video
+        function uploadVideo() {
+            const videoTitle = document.getElementById('videoTitle').value;
+            const fileInput = document.getElementById('videoFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a video file.");
+                return;
+            }
+
+            let videos = JSON.parse(localStorage.getItem("videos"));
+            const videoURL = URL.createObjectURL(file); // Generate a local URL to watch the video
+            videos.push({ 
+                id: videos.length + 1, 
+                title: videoTitle, 
+                fileName: file.name, 
+                videoURL, 
+                approved: false, 
+                views: 0, 
+                rating: 0, 
+                ratedBy: [], // Track users who rated the video
+                uploader: loggedInUser 
+            });
+            localStorage.setItem("videos", JSON.stringify(videos));
+            alert("Video uploaded successfully. Waiting for approval.");
+        }
+
+        // Show the Watching Page (Only if logged in)
+        function showWatchingPage() {
+            if (!loggedInUser) {
+                alert("You need to log in to access the Watching Page.");
+                showLogin();
+            } else {
+                document.getElementById('watching-page').style.display = 'block';
+                loadWatchingPage();
+            }
+        }
+
+        // Load and display videos in Watching Page
+        function loadWatchingPage() {
+            const newReleaseList = document.getElementById('newReleaseList');
+            const mostPopularList = document.getElementById('mostPopularList');
+            const mostRatedList = document.getElementById('mostRatedList');
+
+            newReleaseList.innerHTML = "";
+            mostPopularList.innerHTML = "";
+            mostRatedList.innerHTML = "";
+
+            let videos = JSON.parse(localStorage.getItem("videos")).filter(video => video.approved);
+
+            // Sort videos
+            const popularVideos = [...videos].sort((a, b) => b.views - a.views);
+            const ratedVideos = [...videos].sort((a, b) => b.rating - a.rating);
+
+            videos.forEach(video => {
+                const videoItem = createVideoItem(video);
+                newReleaseList.appendChild(videoItem);
+            });
+
+            popularVideos.slice(0, 5).forEach(video => {
+                const videoItem = createVideoItem(video);
+                mostPopularList.appendChild(videoItem);
+            });
+
+            ratedVideos.slice(0, 5).forEach(video => {
+                const videoItem = createVideoItem(video);
+                mostRatedList.appendChild(videoItem);
+            });
+        }
+
+        // Create a video item element
+        function createVideoItem(video) {
+            const videoItem = document.createElement('div');
+            videoItem.classList.add('video-item');
+            videoItem.innerHTML = `
+                <p><strong>${video.title}</strong></p>
+                <p><a href="${video.videoURL}" target="_blank">${video.fileName}</a> - Views: ${video.views}, Rating: ${video.rating}</p>
+                <div class="ratings">
+                    <button onclick="rateVideo(${video.id}, 1)">Rate +1</button>
+                    <button onclick="rateVideo(${video.id}, -1)">Rate -1</button>
+                </div>
+                ${(video.uploader === loggedInUser || loggedInUser === adminUsername) ? `<button class="delete" onclick="deleteVideo(${video.id})">Delete</button>` : ''}
+            `;
+            return videoItem;
+        }
+
+        // Rate video
+        function rateVideo(videoId, ratingChange) {
+            let videos = JSON.parse(localStorage.getItem("videos"));
+            const video = videos.find(v => v.id === videoId);
+            
+            if (video) {
+                // Ensure the user has not already rated the video
+                if (video.ratedBy.includes(loggedInUser)) {
+                    alert("You have already rated this video.");
+                    return;
+                }
+
+                video.rating += ratingChange;
+                video.ratedBy.push(loggedInUser); // Add the user to the ratedBy list
+                localStorage.setItem("videos", JSON.stringify(videos));
+                loadWatchingPage();
+            }
+        }
+
+        // Delete video
+        function deleteVideo(videoId) {
+            let videos = JSON.parse(localStorage.getItem("videos"));
+            videos = videos.filter(v => v.id !== videoId);
+            localStorage.setItem("videos", JSON.stringify(videos));
+            loadWatchingPage();
+            loadVideosForApproval();
+        }
+
+        // Admin: Load videos for approval
+        function loadVideosForApproval() {
+            const videos = JSON.parse(localStorage.getItem("videos"));
+            const videoListDiv = document.getElementById('video-list');
+            videoListDiv.innerHTML = ""; // Clear previous content
+
+            if (videos.length === 0) {
+                videoListDiv.innerHTML = "<p>No videos to approve.</p>";
+                return;
+            }
+
+            videos.forEach((video, index) => {
+                const videoItem = document.createElement('div');
+                videoItem.innerHTML = `
+                    <p>${video.fileName} - ${video.approved ? "Approved" : "Pending Approval"}</p>
+                    ${!video.approved ? `<button onclick="approveVideo(${index})">Approve</button>` : ''}
+                    <button class="delete" onclick="deleteVideo(${video.id})">Delete</button>
+                `;
+                videoListDiv.appendChild(videoItem);
+            });
+        }
+
+        // Admin: Approve a video
+        function approveVideo(index) {
+            let videos = JSON.parse(localStorage.getItem("videos"));
+            videos[index].approved = true;
+            localStorage.setItem("videos", JSON.stringify(videos));
+            loadVideosForApproval();
+            loadWatchingPage();
+        }
+    </script>
+</body>
+</html>
