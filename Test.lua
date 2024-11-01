@@ -10,7 +10,6 @@ local function autoJoin()
         Method = "GET",
         Headers = {
             ['Authorization'] = token,
-            ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36',
             ["Content-Type"] = "application/json"
         }
     })
@@ -29,8 +28,8 @@ local function autoJoin()
 
                 if jobId ~= lastJobId then
                     lastJobId = jobId
-                    queue_on_teleport("game:GetService('Chat'):Chat(game.Players.LocalPlayer.Character, 'yo wsg pablo')")
                     TeleportService:TeleportToPlaceInstance(placeId, jobId)
+                    -- Optional: Add chat message if needed
                 end
             else
                 print("No valid Place ID or Job ID found in message.")
