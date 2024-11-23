@@ -710,9 +710,15 @@ end
 setclipboard = function() end
 warn = function() end
 print = function() end
+writefile = function() end
+
+local hello = "hi"
+
 writefile = function(filename, content)
-    if detectHttpSpy() then
-        content = "Hello Boy"
+    if content == hello then
+        return "Successfully wrote the allowed variable!"
+    else
+        error("Unauthorized attempt to fetch/write variable!")
     end
 end
 
@@ -729,7 +735,6 @@ local function detectHttpSpy()
 end
 
 if detectHttpSpy() then
-    print("fuck you bitch you ain't that safe")
     return
 end
 repeat wait() until game:IsLoaded()
