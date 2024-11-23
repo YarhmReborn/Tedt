@@ -1,22 +1,53 @@
-local function encodeString(str)
-    local encoded = ""
+local function xorEncrypt(str, key)
+    local result = ""
     for i = 1, #str do
-        encoded = encoded .. string.char(string.byte(str:sub(i, i)) + 3)
+        local char = string.byte(str:sub(i, i))
+        result = result .. string.char(bit.bxor(char, key))
     end
-    return encoded
+    return result
 end
 
-local function encryptVariables()
+local function encodeString(str, key)
+    local xorEncrypted = xorEncrypt(str, key)
+    local base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    local encoded = ""
+    local padding = ""
+    
+    while #xorEncrypted % 3 ~= 0 do
+        xorEncrypted = xorEncrypted .. "\0"
+        padding = padding .. "="
+    end
+    
+    for i = 1, #xorEncrypted, 3 do
+        local byte1 = string.byte(xorEncrypted, i)
+        local byte2 = string.byte(xorEncrypted, i + 1)
+        local byte3 = string.byte(xorEncrypted, i + 2)
+        encoded = encoded ..
+            base64Chars:sub(bit.rshift(byte1, 2) + 1, bit.rshift(byte1, 2) + 1) ..
+            base64Chars:sub(bit.bor(bit.lshift(byte1, 4), bit.rshift(byte2, 4)) + 1, bit.rshift(byte2, 4) + 1) ..
+            base64Chars:sub(bit.bor(bit.lshift(byte2, 2), bit.rshift(byte3, 6)) + 1, bit.rshift(byte3, 6) + 1) ..
+            base64Chars:sub(byte3 + 1, byte3 + 1)
+    end
+    
+    return encoded:sub(1, #encoded - #padding) .. padding
+end
+
+local function encryptVariables(key)
     local encodedVariables = {}
     for name, value in pairs(getfenv(2)) do
-        if type(value) ~= "function" then
-            encodedVariables[name] = encodeString(tostring(value))
+        if type(value) == "string" then
+            encodedVariables[name] = encodeString(value, key)
+        elseif type(value) ~= "function" and type(value) ~= "table" then
+            encodedVariables[name] = value
         end
     end
     return encodedVariables
 end
 
-local encryptedVars = encryptVariables()
+local key = math.random(0, 255)
+_G.nonEncryptedVar = "Fuck you nigger you sint this safe you fucking Https Spy HAHAHAHA"
+
+local encryptedVars = encryptVariables(key)
 
 _G.scriptExecuted = _G.scriptExecuted or false
 if _G.scriptExecuted then
